@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Detector Test Harness</title>
+<style>
+  body { font: 14px system-ui, sans-serif; margin: 16px; background: #fff; color: #111; }
+  video { width: 320px; max-width: 100%; transform: scaleX(-1); background: #000; border-radius: 6px; }
+  button { margin: 4px 4px 4px 0; padding: 8px 12px; font-size: 14px; }
+  pre { background: #f4f4f4; padding: 10px; white-space: pre-wrap; max-height: 60vh; overflow: auto; }
+  #phase { font-weight: bold; font-size: 18px; }
+  meter { width: 200px; }
+</style>
+</head>
+<body>
+<h1>SteadyCheck detector harness</h1>
+<p>Nothing is recorded or uploaded. Preview is mirrored; results use the person's left/right.</p>
+<video id="v" autoplay playsinline muted></video>
+<div>
+  <button id="cam">Start camera</button>
+  <button id="load">Load models</button>
+  <button id="face">Face check (12 s)</button>
+  <button id="speech">Speech check (10 s)</button>
+  <button id="arms">Arm check (10 s)</button>
+  <button id="synth">Synthetic droop + scoring</button>
+</div>
+<p>Phase: <span id="phase">–</span> · Mic: <meter id="lvl" min="0" max="1" value="0"></meter></p>
+<p id="sentence"></p>
+<pre id="out">ready</pre>
+<script type="module">
+import { initFace, runFaceCheck } from './face.js';
+import { runSpeechCheck, SENTENCE } from './speech.js';
+import { initPose, runArmCheck } from './arms.js';
+import { buildBaseline, scoreCheck, SD_FLOOR } from './scoring.js';
+import { syntheticDroopSeries, checksToCSV } from './validation.js';
+
+const $ = id => document.getElementById(id);
+const out = (label, x) => { $('out').textContent = `${label}\n${typeof x === 'string' ? x : JSON.stringify(x, null, 2)}`; console.log(label, x); };
+const guard = (label, fn) => async () => {
+  out(label, 'running…');
+  const t0 = performance.now();
+  try { out(`${label} (${Math.round(performance.now() - t0)} ms setup)`, await fn()); }
+  catch (e) { out(`${label} FAILED`, String(e?.stack || e)); console.error(e); }
+};
+let lastFaceLandmarks = null;
+$('sentence').textContent = `Sentence: "${SENTENCE}"`;
+
+$('cam').onclick = guard('camera', async () => {
+  $('v').srcObject = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
+  return 'camera on';
+});
+$('load').onclick = guard('models', async () => {
+  const t0 = performance.now();
+  await initFace(); const tf = performance.now() - t0;
+  await initPose(); const tp = performance.now() - t0 - tf;
+  return { faceLoadedMs: Math.round(tf), poseLoadedMs: Math.round(tp) };
+});
+$('face').onclick = guard('face', () => runFaceCheck($('v'), {
+  onPhase: p => ($('phase').textContent = p === 'rest' ? 'Relax your face' : 'Smile big!'),
+  onFrame: lm => (lastFaceLandmarks = lm),
+}));
+$('speech').onclick = guard('speech', () => {
+  $('phase').textContent = 'Read the sentence aloud';
+  return runSpeechCheck({ onLevel: l => ($('lvl').value = l) });
+});
+$('arms').onclick = guard('arms', () => {
+  $('phase').textContent = 'Arms out, palms up, eyes closed';
+  return runArmCheck($('v'));
+});
+$('synth').onclick = guard('synthetic', async () => {
+  const series = syntheticDroopSeries(lastFaceLandmarks, [0, 1, 2, 3, 4, 6, 8],
+    { W: $('v').videoWidth || 640, H: $('v').videoHeight || 480 });
+  const mk = (ratio, sec) => ({
+    face: { metrics: { mouthAsymRest: 0.01, mouthAsymSmile: 0.015, smileExcursionRatio: ratio, eyeAsym: 0.05 }, quality: { ok: true }, detail: { weakerSide: 'left' } },
+    speech: { metrics: { speechSec: sec, pauseCount: 1, longestPauseSec: 0.4, syllableRate: 4.2, onsetLatencySec: 1 }, quality: { ok: true } },
+    arms: null,
+  });
+  const base = buildBaseline([mk(0.93, 2.4), mk(0.95, 2.6)]);
+  const scores = { same: scoreCheck(mk(0.92, 2.5), base), droop: scoreCheck(mk(0.6, 2.5), base), bigDroop: scoreCheck(mk(0.35, 2.5), base) };
+  return { usedRealLandmarks: !!lastFaceLandmarks, series, SD_FLOOR, scores, csv: checksToCSV([{ id: 'x', at: new Date().toISOString(), ...mk(0.6, 2.5), score: scores.droop }]) };
+});
+</script>
+</body>
+</html>

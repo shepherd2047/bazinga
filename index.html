@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SteadyCheck</title>
+  <meta name="description" content="Stroke aftercare: daily face, speech and arm check against your own normal, plus a blood pressure and medication log.">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="banner911" href="tel:911" role="alert">
+    <span class="banner-icon" aria-hidden="true">☎</span>
+    <span><strong>Any sudden symptoms → call 911 now.</strong> Don't wait for this app.</span>
+  </a>
+
+  <header class="topbar">
+    <a href="#/" class="brand"><span class="brand-mark" aria-hidden="true">◆</span> SteadyCheck</a>
+    <a href="#/setup" class="topbar-link">Settings</a>
+  </header>
+
+  <main id="app" tabindex="-1" aria-live="polite"><p class="loading">Loading…</p></main>
+
+  <footer class="footer">
+    <p>SteadyCheck does not diagnose, predict or rule out a stroke. If something feels wrong, call 911.</p>
+    <p class="footer-links">
+      <a href="#/science">The science</a> ·
+      <a href="#/validation">Validation</a> ·
+      <a href="#/baseline">Record baseline</a> ·
+      <label class="demo-switch"><input type="checkbox" id="demoSwitch"> Demo controls</label>
+    </p>
+  </footer>
+
+  <nav class="bottomnav" aria-label="Main">
+    <a href="#/" data-nav="home"><span aria-hidden="true">⌂</span>Home</a>
+    <a href="#/log" data-nav="log"><span aria-hidden="true">♥</span>Log</a>
+    <a href="#/family" data-nav="family"><span aria-hidden="true">☺</span>Family</a>
+    <a href="#/report" data-nav="report"><span aria-hidden="true">▤</span>Report</a>
+  </nav>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
